@@ -40,25 +40,41 @@ def RegisterArmatures():
     bpy.types.Scene.armatureMaster_name = bpy.props.StringProperty()
     
 def DeleteArmatures():
-    del bpy.data.armatureSlave_name
-    del bpy.data.armatureMaster_name
+    del bpy.types.Scene.armatureSlave_name
+    del bpy.types.Scene.armatureMaster_name
     
 def GetBones(context):   
     bone_names = []
     if context.scene.armatureSlave_name is not None:
-        print(context.scene.armatureSlave_name)
+        #print(context.scene.armatureSlave_name)
         for bone in bpy.data.objects[context.scene.armatureSlave_name].data.bones:
             bone_names.append(bone.name)
-    for i in bone_names:
-        print(i)
+    #for i in bone_names:
+    #    print(i)
   
+def GetBonesFromArmature(armatureName):   
+    boneArray = []
+    if armatureName is not None:
+        for bone in bpy.data.armatures[armatureName].bones:
+            boneArray.append(bone)
+    return boneArray
+
+def AddTransformationConstraints(armSlave, armMaster):
+    if armSlave is not None and armMaster is not None:
+        for boneSlave in bpy.data.armatures[armSlave].bones:
+            for boneMaster in bpy.data.armatures[armMaster].bones:
+                if boneSlave.name == boneMaster.name:
+                    crc = boneSlave.constraints.new('TRANSFORM')
+                    crc.target = boneMaster             
+    return None
 
 class buttonGetBones(bpy.types.Operator):
     bl_idname = "button.getbones" # translates to C-name BUTTON_OT_explode
     bl_label = "Button text"
 
     def execute(self, context):
-        GetBones(context)
+        boneSlaveArray = GetBonesFromArmature(context.scene.armatureSlave_name)
+        boneMasterArray = GetBonesFromArmature(context.scene.armatureMaster_name)
         return {'FINISHED'}
 
 def register():
