@@ -1,4 +1,5 @@
 import sys 
+import mathutils
 sys.path.append('c:/Python37-32/Lib/site-packages')
 import bpy
 from bpy.types import Panel
@@ -28,12 +29,12 @@ class SimpleToolPanel(Panel):
     def draw(self, context):
         layout = self.layout
         scene = context.scene
-        layout.prop_search(scene, "armatureSlave_name", bpy.data, "armatures")
-        layout.prop_search(scene, "armatureMaster_name", bpy.data, "armatures")       
+        layout.prop_search(scene, "armatureSlave_name", bpy.data, "objects")
+        layout.prop_search(scene, "armatureMaster_name", bpy.data, "objects")       
         layout.operator("button.getbones",text="Get List of Bones")
 
 def scene_armature_poll(self, object):
-    return object.type == 'ARMATURE'
+    return object.type == 'OBJECT'
 
 def RegisterArmatures():
     bpy.types.Scene.armatureSlave_name = bpy.props.StringProperty()
@@ -55,17 +56,60 @@ def GetBones(context):
 def GetBonesFromArmature(armatureName):   
     boneArray = []
     if armatureName is not None:
-        for bone in bpy.data.armatures[armatureName].bones:
+        for bone in bpy.data.objects[armatureName].pose.bones:
             boneArray.append(bone)
     return boneArray
 
 def AddTransformationConstraints(armSlave, armMaster):
+    axisList = ["X","Y","Z"]
     if armSlave is not None and armMaster is not None:
-        for boneSlave in bpy.data.armatures[armSlave].bones:
-            for boneMaster in bpy.data.armatures[armMaster].bones:
+        for boneSlave in bpy.data.objects[armSlave].pose.bones:
+            for boneMaster in bpy.data.objects[armMaster].pose.bones:
                 if boneSlave.name == boneMaster.name:
-                    crc = boneSlave.constraints.new('TRANSFORM')
-                    crc.target = boneMaster             
+                    crc = boneSlave.constraints.new(type='TRANSFORM')
+                    crc.target = bpy.data.objects[armMaster]
+                    crc.subtarget = boneMaster.name
+                    dotX = boneSlave.x_axis.dot(boneMaster.x_axis)
+                    dotY = boneSlave.x_axis.dot(boneMaster.y_axis)
+                    dotZ = boneSlave.x_axis.dot(boneMaster.z_axis)
+                    listOfDotProducts = [abs(dotX),abs(dotY),abs(dotZ)]
+                    biggestDotProductX = listOfDotProducts.index(max(listOfDotProducts))                   
+                    dotX = boneSlave.y_axis.dot(boneMaster.x_axis)
+                    dotY = boneSlave.y_axis.dot(boneMaster.y_axis)
+                    dotZ = boneSlave.y_axis.dot(boneMaster.z_axis)
+                    listOfDotProducts = [abs(dotX),abs(dotY),abs(dotZ)]
+                    biggestDotProductY = listOfDotProducts.index(max(listOfDotProducts))
+                    dotX = boneSlave.z_axis.dot(boneMaster.x_axis)
+                    dotY = boneSlave.z_axis.dot(boneMaster.y_axis)
+                    dotZ = boneSlave.z_axis.dot(boneMaster.z_axis)
+                    listOfDotProducts = [abs(dotX),abs(dotY),abs(dotZ)]
+                    biggestDotProductZ = listOfDotProducts.index(max(listOfDotProducts))
+                    print([biggestDotProductX,biggestDotProductY,biggestDotProductZ])
+                    crc.map_to_x_from = axisList[biggestDotProductX]
+                    crc.map_to_y_from = axisList[biggestDotProductY]
+                    crc.map_to_z_from = axisList[biggestDotProductZ]
+                    crc.map_from = "ROTATION"
+                    crc.map_to = "ROTATION"
+                    crc.owner_space = "LOCAL"
+                    crc.target_space = "LOCAL"
+                    crc.from_min_x_rot = -6.283185
+                    crc.from_max_x_rot = 6.283185
+                    crc.from_min_y_rot = -6.283185
+                    crc.from_max_y_rot = 6.283185
+                    crc.from_min_z_rot = -6.283185
+                    crc.from_max_z_rot = 6.283185
+                    crc.to_min_x_rot = -6.283185
+                    crc.to_max_x_rot = 6.283185
+                    crc.to_min_y_rot = 6.283185
+                    crc.to_max_y_rot = -6.283185
+                    if (boneSlave.location.x + bpy.data.objects[armSlave].location.x) <= 0:
+                        crc.to_min_x_rot = 6.283185
+                        crc.to_max_x_rot = -6.283185
+                        crc.to_min_y_rot = -6.283185
+                        crc.to_max_y_rot = 6.283185
+                    crc.to_min_z_rot = -6.283185
+                    crc.to_max_z_rot = 6.283185
+                                 
     return None
 
 class buttonGetBones(bpy.types.Operator):
@@ -75,6 +119,7 @@ class buttonGetBones(bpy.types.Operator):
     def execute(self, context):
         boneSlaveArray = GetBonesFromArmature(context.scene.armatureSlave_name)
         boneMasterArray = GetBonesFromArmature(context.scene.armatureMaster_name)
+        AddTransformationConstraints(context.scene.armatureSlave_name, context.scene.armatureMaster_name)
         return {'FINISHED'}
 
 def register():
