@@ -60,6 +60,24 @@ def GetBonesFromArmature(armatureName):
             boneArray.append(bone)
     return boneArray
 
+def GetBiggestDotProduct(boneSlave, boneMaster, axis):
+    dotX = 0
+    dotY = 0
+    dotZ = 0
+    if (boneSlave is not None and boneMaster is not None):
+        boneSlaveAxis = getattr(boneSlave, axis)
+        dotX = boneSlaveAxis.dot(boneMaster.x_axis)
+        dotY = boneSlaveAxis.dot(boneMaster.y_axis)
+        dotZ = boneSlaveAxis.dot(boneMaster.z_axis)
+    listOfAbsDotProducts = [abs(dotX),abs(dotY),abs(dotZ)]
+    listOfDotProducts = [dotX, dotY, dotZ]
+    indexOfBiggest = listOfAbsDotProducts.index(max(listOfAbsDotProducts))   
+    if (listOfDotProducts[indexOfBiggest] < 0):
+        signOfDot = -1
+    else:
+        signOfDot = 1
+    return indexOfBiggest, signOfDot
+                    
 def AddTransformationConstraints(armSlave, armMaster):
     axisList = ["X","Y","Z"]
     if armSlave is not None and armMaster is not None:
@@ -69,22 +87,9 @@ def AddTransformationConstraints(armSlave, armMaster):
                     crc = boneSlave.constraints.new(type='TRANSFORM')
                     crc.target = bpy.data.objects[armMaster]
                     crc.subtarget = boneMaster.name
-                    dotX = boneSlave.x_axis.dot(boneMaster.x_axis)
-                    dotY = boneSlave.x_axis.dot(boneMaster.y_axis)
-                    dotZ = boneSlave.x_axis.dot(boneMaster.z_axis)
-                    listOfDotProducts = [abs(dotX),abs(dotY),abs(dotZ)]
-                    biggestDotProductX = listOfDotProducts.index(max(listOfDotProducts))                   
-                    dotX = boneSlave.y_axis.dot(boneMaster.x_axis)
-                    dotY = boneSlave.y_axis.dot(boneMaster.y_axis)
-                    dotZ = boneSlave.y_axis.dot(boneMaster.z_axis)
-                    listOfDotProducts = [abs(dotX),abs(dotY),abs(dotZ)]
-                    biggestDotProductY = listOfDotProducts.index(max(listOfDotProducts))
-                    dotX = boneSlave.z_axis.dot(boneMaster.x_axis)
-                    dotY = boneSlave.z_axis.dot(boneMaster.y_axis)
-                    dotZ = boneSlave.z_axis.dot(boneMaster.z_axis)
-                    listOfDotProducts = [abs(dotX),abs(dotY),abs(dotZ)]
-                    biggestDotProductZ = listOfDotProducts.index(max(listOfDotProducts))
-                    print([biggestDotProductX,biggestDotProductY,biggestDotProductZ])
+                    biggestDotProductX, signOfX = GetBiggestDotProduct(boneSlave, boneMaster, "x_axis")                   
+                    biggestDotProductY, signOfY = GetBiggestDotProduct(boneSlave, boneMaster, "y_axis")
+                    biggestDotProductZ, signOfZ = GetBiggestDotProduct(boneSlave, boneMaster, "z_axis")
                     crc.map_to_x_from = axisList[biggestDotProductX]
                     crc.map_to_y_from = axisList[biggestDotProductY]
                     crc.map_to_z_from = axisList[biggestDotProductZ]
@@ -98,17 +103,12 @@ def AddTransformationConstraints(armSlave, armMaster):
                     crc.from_max_y_rot = 6.283185
                     crc.from_min_z_rot = -6.283185
                     crc.from_max_z_rot = 6.283185
-                    crc.to_min_x_rot = -6.283185
-                    crc.to_max_x_rot = 6.283185
-                    crc.to_min_y_rot = 6.283185
-                    crc.to_max_y_rot = -6.283185
-                    if (boneSlave.location.x + bpy.data.objects[armSlave].location.x) <= 0:
-                        crc.to_min_x_rot = 6.283185
-                        crc.to_max_x_rot = -6.283185
-                        crc.to_min_y_rot = -6.283185
-                        crc.to_max_y_rot = 6.283185
-                    crc.to_min_z_rot = -6.283185
-                    crc.to_max_z_rot = 6.283185
+                    crc.to_min_x_rot = -6.283185 * signOfX
+                    crc.to_max_x_rot = 6.283185 * signOfX
+                    crc.to_min_y_rot = -6.283185 * signOfY
+                    crc.to_max_y_rot = 6.283185 * signOfY
+                    crc.to_min_z_rot = -6.283185 * signOfZ
+                    crc.to_max_z_rot = 6.283185 * signOfZ
                                  
     return None
 
